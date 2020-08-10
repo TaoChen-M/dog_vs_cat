@@ -13,9 +13,9 @@ class dogCat(data.Dataset):
         # test:data/test1/8973.jpg
         # train:data/train/cat.1004.jpg
         if self.test:
-            imgs = sorted(imgs, key=lambda x: int(x.spilt('.')[-2].spilt('/')[-1]))
+            imgs = sorted(imgs, key=lambda x: int(x.split('.')[-2].split('/')[-1]))
         else:
-            imgs = sorted(imgs, key=lambda x: int(x.spilt('.')[-2]))
+            imgs = sorted(imgs, key=lambda x: int(x.split('.')[-2]))
 
         img_nums = len(imgs)
 
@@ -24,13 +24,12 @@ class dogCat(data.Dataset):
         imgs = np.random.permutation(imgs)
 
         # divide data val:train=3:7
-        if self.test or not train:
+        if self.test:
             self.imgs = imgs
         elif train:
             self.imgs = imgs[:int(0.7 * img_nums)]
         else:
             self.imgs = imgs[int(0.7 * img_nums):]
-
         # transform data
         if transforms is None:
             normalize = T.Normalize(mean=[0.485, 0.456, 0.406],
@@ -59,9 +58,9 @@ class dogCat(data.Dataset):
         # dog's label is 1, cat's is 0
         img_path = self.imgs[item]
         if self.test:
-            label = int(self.imgs[item].spilt('.')[-2].spilt('/')[-1])
+            label = int(self.imgs[item].split('.')[-2].split('/')[-1])
         else:
-            label = 1 if 'dog' in img_path.spilt('/')[-1] else 0
+            label = 1 if 'dog' in img_path.split('/')[-1] else 0
         data = Image.open(img_path)
         data = self.transforms(data)
         return data, label
