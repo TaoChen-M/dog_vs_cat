@@ -5,37 +5,38 @@ import torchvision.models as models
 from torch.utils.data.dataloader import DataLoader
 from data import dogCat
 from tqdm import tqdm
-from config import args
+from args import get_args
+from build_model import build_model
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import time
 import xlwt
 
+
 def train(**kwargs):
     # step 1 model
-    model = models.resnet34(pretrained=True)
-    model.fc = nn.Linear(512, 2)
+    model = build_model(args)
 
-    model.to(opt.device)
+    model = model.to(args.device)
 
     # step 2 data
-    traindata = dogCat(opt.trainroot, train=True)
-    valdata = dogCat(opt.trainroot, train=False)
+    traindata = dogCat(args.trainroot, train=True)
+    valdata = dogCat(args.trainroot, train=False)
 
-    train_dataloader = DataLoader(traindata, batch_size=opt.train_batchsize, shuffle=True, num_workers=opt.numworkers)
-    val_dataloader = DataLoader(valdata, batch_size=opt.test_batchsize, shuffle=True, num_workers=opt.numworkers)
+    train_dataloader = DataLoader(traindata, batch_size=args.train_batch, shuffle=True, num_workers=args.numworkers)
+    val_dataloader = DataLoader(valdata, batch_size=args.test_batch, shuffle=True, num_workers=args.numworkers)
 
-    # step 3 loss and optimizer
+    # step 3 loss and argsimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
 
     # train
-    for epoch in range(opt.max_epoch):
+    for epoch in range(args.max_epoch):
 
         correct = 0
         for i, (data, label) in tqdm(enumerate(train_dataloader)):
-            input = data.to(opt.device)
-            target = label.to(opt.device)
+            input = data.to(args.device)
+            target = label.to(args.device)
 
             output = model(input)
             optimizer.zero_grad()
@@ -47,7 +48,7 @@ def train(**kwargs):
             correct += torch.eq(pre, target).sum().float().item()
 
         train_accuracy = correct / len(train_dataloader.dataset)
-        torch.save(model, opt.save_path)
+        torch.save(model, args.save_path)
         val_accuracy = val(model, val_dataloader)
 
         # save best accuracy
@@ -69,8 +70,8 @@ def val(model, dataloader):
     model.eval()
     correct = 0
     for i, (data, label) in tqdm(enumerate(dataloader)):
-        input = data.to(opt.device)
-        target = label.to(opt.device)
+        input = data.to(args.device)
+        target = label.to(args.device)
         score = model(input)
         # print(score)
         pre = score.argmax(dim=1)
@@ -81,16 +82,16 @@ def val(model, dataloader):
 
 
 def test(**kwargs):
-    model = torch.load(opt.save_path)
-    model.to(opt.device)
-    testdata = dogCat(opt.testroot, test=True)
-    test_dataloader = DataLoader(testdata, opt.test_batchsize, num_workers=opt.numworkers)
+    model = torch.load(args.save_path)
+    model.to(args.device)
+    testdata = dogCat(args.testroot, test=True)
+    test_dataloader = DataLoader(testdata, args.test_batch, num_workers=args.numworkers)
     results = []
     for i, (data, label) in enumerate(test_dataloader):
-        input = data.to(opt.device)
+        input = data.to(args.device)
         score = model(input)
         probability = score.argmax(dim=1)
-        probability=probability.cpu().numpy()
+        probability = probability.cpu().numpy()
         print(i, probability)
         # probability
         results.append(probability)
@@ -99,21 +100,22 @@ def test(**kwargs):
     print(results)
     return results
 
+
 def save(**kwargs):
-    results=test()
-    len=results.__len__()
-    xl=xlwt.Workbook()
-    sheet=xl.add_sheet('dog_vs_cat',cell_overwrite_ok=True)
-    for i in range(0,len):
-        sheet.write(i,0,str(results[i]))
-        if results[i]==1:
-            sheet.write(i,1,'dog')
+    results = test()
+    len = results.__len__()
+    xl = xlwt.Workbook()
+    sheet = xl.add_sheet('dog_vs_cat', cell_overwrite_ok=True)
+    for i in range(0, len):
+        sheet.write(i, 0, str(results[i]))
+        if results[i] == 1:
+            sheet.write(i, 1, 'dog')
         else:
-            sheet.write(i,1,'cat')
-    xl.save('ckpt/results.xls')
+            sheet.write(i, 1, 'cat')
+    xl.save(args.result_path)
+
 
 if __name__ == '__main__':
-    opt = args()
-    # train()
-    # test()
+    args = get_args()
+    train()
     save()
